@@ -1,0 +1,61 @@
+#!/bin/bash
+#Title: Asmt01 CS260a
+#Name: Yongzheng He Login as hyongzhe
+#Date: 2/2/2017
+#Synopsis: maillist [-q] [CRNnumber] 
+#Description: This script will generate a mailist including both students and faculties of a given CRN number. 
+#-q : quiet mode, no running message will show up. Running status can be check by echo $?
+#CRNnumber should be pure 5 digit number, any symbols are not allowed
+
+#Initialized
+quiet=false
+error(){
+ typeset progname=$(basename $0)
+ if [ $quiet == false ];then
+    echo "$progname: ERROR: $*" >&2
+    echo "$progname: usage: $progname [-q] crn-number" >&2        
+ fi
+ exit 1
+}
+
+#Parameters check. Only maillist crnnumber or maillist -q crnnumber allowed
+[[ "$1" == "-q" ]] && quiet=true && shift
+[[ "$#" -ne 1 ]] && error "No CRN number -abort!"
+! [[ "$1" =~ ^[0-9]{5}$ ]] && error "CRN number has to be 5 digits!"
+
+#Main function
+
+group_info=$(getent group|grep $1)
+group_name=$(echo "$group_info" | cut -d: -f1)
+group_id=$(echo "$group_info" | cut -d: -f3)
+group_member=$(echo "$group_info" | cut -d: -f4)
+student_number=0
+faculty_number=0
+#By command id on each member the identity can be found
+
+if [ -n "$group_info" ]; then
+        for member in $(echo "$group_member"|sed 's/,/\n/g')
+          do
+             if [[ -n $(id $member | grep students) ]];then
+                echo "$member@mail.ccsf.edu" >> asmt01list
+                student_number=$(( $student_number + 1 ))
+              else
+                echo "$member@ccsf.edu" >> asmt01list
+                faculty_number=$(( $faculty_number + 1))
+              fi
+          done
+          # Print our the result
+          file_path=$(find ~/asmt01 -name asmt01list)
+          if [ $quiet == false ];then
+            echo "There are $student_number students and $faculty_number faculty(ies) in CRN#$1"
+            echo "It's group name is $group_name and group id is $group_id."
+            echo "The members of the class are:\n"
+
+            cat asmt01list
+            echo "\nYou can find the list in\n $file_path."
+          fi
+  else
+      error "No group for $1 found"
+fi
+
+
